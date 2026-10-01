@@ -307,45 +307,171 @@ function syncFullscreenState() {
     : 'Enter full screen';
 }
 
-function setImage(input, layer, thumb, nameOutput, onDimensions) {
-  input.addEventListener('change', () => {
-    const [file] = input.files;
-    if (!file) return;
+const IMAGE_DIR = 'images/';
+const IMAGE_PATTERN = /\.(avif|gif|jpe?g|png|svg|webp)$/i;
 
-    const reader = new FileReader();
-    reader.addEventListener('load', () => {
-      const imageValue = `url("${reader.result}")`;
-      layer.style.backgroundImage = imageValue;
-      thumb.style.backgroundImage = imageValue;
-      nameOutput.textContent = file.name;
-      if (onDimensions) {
-        const loadedImage = new Image();
-        loadedImage.addEventListener('load', () => {
-          onDimensions(loadedImage.naturalWidth, loadedImage.naturalHeight);
-        });
-        loadedImage.src = reader.result;
-      }
-    });
-    reader.readAsDataURL(file);
+const galleryDialog = document.querySelector('#galleryDialog');
+const galleryTitle = document.querySelector('#galleryTitle');
+const galleryGrid = document.querySelector('#galleryGrid');
+const galleryStatus = document.querySelector('#galleryStatus');
+const galleryClose = document.querySelector('#galleryClose');
+const galleryUpload = document.querySelector('#galleryUpload');
+
+const slots = {
+  one: {
+    label: 'starting',
+    button: document.querySelector('#pickerOne'),
+    layer: imageOne,
+    thumb: document.querySelector('#thumbOne'),
+    name: document.querySelector('#fileOneName'),
+    file: null,
+    onDimensions(width, height) {
+      sourceSize = { width, height };
+      positionOriginMarker();
+    },
+  },
+  two: {
+    label: 'finishing',
+    button: document.querySelector('#pickerTwo'),
+    layer: imageTwo,
+    thumb: document.querySelector('#thumbTwo'),
+    name: document.querySelector('#fileTwoName'),
+    file: null,
+  },
+};
+
+let activeSlot = slots.one;
+let galleryFiles;
+
+function displayName(file) {
+  return file.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ');
+}
+
+function imageUrl(file) {
+  return `${IMAGE_DIR}${encodeURIComponent(file)}`;
+}
+
+async function fetchManifest() {
+  const response = await fetch(`${IMAGE_DIR}manifest.json`, { cache: 'no-cache' });
+  if (!response.ok) throw new Error('No manifest');
+  const list = await response.json();
+  if (!Array.isArray(list)) throw new Error('Invalid manifest');
+  return list;
+}
+
+// Fallback for servers that expose a directory listing (e.g. `python3 -m http.server`).
+async function fetchDirectoryListing() {
+  const response = await fetch(IMAGE_DIR);
+  if (!response.ok) throw new Error('No directory listing');
+  const doc = new DOMParser().parseFromString(await response.text(), 'text/html');
+  return [...doc.querySelectorAll('a[href]')].map((link) => {
+    const path = link.getAttribute('href').split(/[?#]/)[0];
+    return decodeURIComponent(path.split('/').pop());
   });
 }
 
-setImage(
-  document.querySelector('#fileOne'),
-  imageOne,
-  document.querySelector('#thumbOne'),
-  document.querySelector('#fileOneName'),
-  (width, height) => {
-    sourceSize = { width, height };
-    positionOriginMarker();
-  },
-);
-setImage(
-  document.querySelector('#fileTwo'),
-  imageTwo,
-  document.querySelector('#thumbTwo'),
-  document.querySelector('#fileTwoName'),
-);
+async function loadGalleryFiles() {
+  if (galleryFiles) return galleryFiles;
+
+  let list = [];
+  try {
+    list = await fetchManifest();
+  } catch {
+    try {
+      list = await fetchDirectoryListing();
+    } catch {
+      list = [];
+    }
+  }
+
+  const files = [...new Set(list.filter((file) => typeof file === 'string' && IMAGE_PATTERN.test(file)))];
+  if (files.length) galleryFiles = files;
+  return files;
+}
+
+function renderGallery(files) {
+  galleryGrid.replaceChildren();
+
+  if (!files.length) {
+    galleryStatus.textContent = 'No images are available here yet. You can upload one from your computer.';
+    galleryStatus.hidden = false;
+    return;
+  }
+
+  galleryStatus.hidden = true;
+  files.forEach((file) => {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'gallery-item';
+    item.setAttribute('aria-pressed', String(activeSlot.file === file));
+
+    const picture = document.createElement('img');
+    picture.src = imageUrl(file);
+    picture.alt = '';
+    picture.loading = 'lazy';
+    picture.addEventListener('error', () => item.remove());
+
+    const caption = document.createElement('span');
+    caption.textContent = displayName(file);
+
+    item.append(picture, caption);
+    item.addEventListener('click', () => {
+      applyImage(activeSlot, imageUrl(file), displayName(file), file);
+      galleryDialog.close();
+    });
+    galleryGrid.append(item);
+  });
+}
+
+function applyImage(slot, url, label, file = null) {
+  const imageValue = `url("${url}")`;
+  slot.layer.style.backgroundImage = imageValue;
+  slot.thumb.style.backgroundImage = imageValue;
+  slot.name.textContent = label;
+  slot.file = file;
+
+  if (slot.onDimensions) {
+    const loadedImage = new Image();
+    loadedImage.addEventListener('load', () => {
+      slot.onDimensions(loadedImage.naturalWidth, loadedImage.naturalHeight);
+    });
+    loadedImage.src = url;
+  }
+}
+
+async function openGallery(slot) {
+  activeSlot = slot;
+  galleryTitle.textContent = `Choose the ${slot.label} image`;
+  galleryGrid.replaceChildren();
+  galleryStatus.textContent = 'Loading images…';
+  galleryStatus.hidden = false;
+  galleryDialog.showModal();
+
+  const files = await loadGalleryFiles();
+  if (galleryDialog.open && activeSlot === slot) renderGallery(files);
+}
+
+function uploadImage() {
+  const [file] = galleryUpload.files;
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.addEventListener('load', () => {
+    applyImage(activeSlot, reader.result, file.name);
+    galleryDialog.close();
+  });
+  reader.readAsDataURL(file);
+  galleryUpload.value = '';
+}
+
+Object.values(slots).forEach((slot) => {
+  slot.button.addEventListener('click', () => openGallery(slot));
+});
+galleryClose.addEventListener('click', () => galleryDialog.close());
+galleryDialog.addEventListener('click', (event) => {
+  if (event.target === galleryDialog) galleryDialog.close();
+});
+galleryUpload.addEventListener('change', uploadImage);
 
 form.addEventListener('submit', startTimer);
 originPicker.addEventListener('click', chooseOrigin);
