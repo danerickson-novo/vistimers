@@ -81,8 +81,7 @@
             <fieldset>
               <legend>Choose your images</legend>
               <div class="image-pickers">
-                <label class="image-picker" id="pickerOne">
-                  <input type="file" id="fileOne" accept="image/*" />
+                <button class="image-picker" id="pickerOne" type="button" data-slot="one" aria-haspopup="dialog">
                   <span class="picker-thumb thumb-one" id="thumbOne" aria-hidden="true"></span>
                   <span class="picker-copy">
                     <strong>Starting image</strong>
@@ -90,10 +89,10 @@
                   </span>
                   <span class="upload-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none">
-                      <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 15v4h14v-4" />
+                      <path d="m9 6 6 6-6 6" />
                     </svg>
                   </span>
-                </label>
+                </button>
 
                 <span class="to-arrow" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none">
@@ -101,8 +100,7 @@
                   </svg>
                 </span>
 
-                <label class="image-picker" id="pickerTwo">
-                  <input type="file" id="fileTwo" accept="image/*" />
+                <button class="image-picker" id="pickerTwo" type="button" data-slot="two" aria-haspopup="dialog">
                   <span class="picker-thumb thumb-two" id="thumbTwo" aria-hidden="true"></span>
                   <span class="picker-copy">
                     <strong>Finishing image</strong>
@@ -110,10 +108,10 @@
                   </span>
                   <span class="upload-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none">
-                      <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 15v4h14v-4" />
+                      <path d="m9 6 6 6-6 6" />
                     </svg>
                   </span>
-                </label>
+                </button>
               </div>
             </fieldset>
 
@@ -228,6 +226,33 @@
         Your images stay in this browser.
       </p>
     </main>
+
+    <dialog class="gallery-dialog" id="galleryDialog" aria-labelledby="galleryTitle">
+      <div class="gallery-header">
+        <h2 id="galleryTitle">Choose an image</h2>
+        <button class="gallery-close" id="galleryClose" type="button">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M6 6l12 12M18 6 6 18" />
+          </svg>
+          <span class="sr-only">Close</span>
+        </button>
+      </div>
+
+      <div class="gallery-body">
+        <p class="gallery-status" id="galleryStatus" role="status">Loading images…</p>
+        <div class="gallery-grid" id="galleryGrid"></div>
+      </div>
+
+      <div class="gallery-footer">
+        <label class="upload-option">
+          <input type="file" id="galleryUpload" accept="image/*" />
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 15v4h14v-4" />
+          </svg>
+          Upload from your computer
+        </label>
+      </div>
+    </dialog>
 
     <script src="app.js"></script>
   </body>
