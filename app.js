@@ -393,7 +393,7 @@ function renderGallery(files) {
   galleryGrid.replaceChildren();
 
   if (!files.length) {
-    galleryStatus.textContent = 'No images are available here yet. You can upload one from your computer.';
+    galleryStatus.textContent = 'No images are available here yet. You can select one from your computer.';
     galleryStatus.hidden = false;
     return;
   }
